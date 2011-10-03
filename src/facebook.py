@@ -389,21 +389,28 @@ def get_user_access_token(signed_request, client_id, client_secret):
     if not code:
         return None
 
-    u = urllib2.urlopen(
-        'https://graph.facebook.com/oauth/access_token',
-        data=urllib.urlencode({
-            'client_id': client_id,
-            'client_secret': client_secret,
-            'code': code,
-            'redirect_uri': '',
-        })
-    )
-
-    response = u.read()
-    data = cgi.parse_qs(response)
     try:
-        return data['access_token'][-1]
-    except KeyError:
+        u = urllib2.urlopen(
+            'https://graph.facebook.com/oauth/access_token',
+            data=urllib.urlencode({
+                'client_id': client_id,
+                'client_secret': client_secret,
+                'code': code,
+                'redirect_uri': '',
+            })
+        )
+        response = u.read()
+        data = cgi.parse_qs(response)
+        try:
+            return data['access_token'][-1]
+        except KeyError:
+            return None
+    except urllib2.HTTPError as e:
+        # Facebook will return a 400 error if there was an OAuthException
+        # In this case, we are probably dealing with an expired facebook cookie
+        # and we can safely ignore. otherwise we don't quite know what's up.
+        if e.code != 400:
+          raise
         return None
 
 def get_user_from_cookie(cookies, app_id, app_secret):
