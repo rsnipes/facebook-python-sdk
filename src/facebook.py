@@ -163,7 +163,7 @@ class GraphAPI(object):
             finally:
                 del data['picture']
                 file.close()
-        path = "me/events" if not id else str(id)
+        path = "/" + ("me/events" if not id else str(id))
         return self.multipart_request(path, post_args=data, files=files)
 
     def put_comment(self, object_id, message):
