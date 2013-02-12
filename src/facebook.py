@@ -55,6 +55,9 @@ except ImportError:
     _parse_json = lambda s: simplejson.loads(s)
 
 
+FB_ISO_8601 = '%Y-%m-%dT%H:%M:%S%z'
+
+
 class GraphAPI(object):
     """A client for the Facebook Graph API.
 
@@ -176,7 +179,6 @@ class GraphAPI(object):
             return self.multipart_request(path, post_args=data, files=files)
 
         return self.request(path, post_args=data)
-
 
     def put_comment(self, object_id, message):
         """Writes the given comment on the given post."""
