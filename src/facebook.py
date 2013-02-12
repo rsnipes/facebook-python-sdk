@@ -169,16 +169,23 @@ class GraphAPI(object):
 
         files = {}
         if 'picture' in data:
-            file = urllib.urlopen(data['picture'])
+            picture_file = urllib.urlopen(data['picture'])
             try:
-                files['picture'] = file.read()
+                files['source'] = picture_file.read()
             finally:
                 del data['picture']
-                file.close()
-        if files:
-            return self.multipart_request(path, post_args=data, files=files)
+                picture_file.close()
 
-        return self.request(path, post_args=data)
+        response = self.request(path, post_args=data)
+
+        if files and isinstance(response, dict) and 'id' in response:
+            self.multipart_request(
+                '/%s/picture' % response['id'],
+                post_args={},
+                files=files,
+            )
+
+        return response
 
     def put_comment(self, object_id, message):
         """Writes the given comment on the given post."""
