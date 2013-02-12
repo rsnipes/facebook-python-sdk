@@ -147,14 +147,23 @@ class GraphAPI(object):
         """
         return self.put_object(profile_id, "feed", message=message, **attachment)
 
-    def put_event(self, id=None, **data):
+    def put_event(self, id=None, page_id=None, **data):
         """Creates an event with a picture.
 
-        We accept the params as per http://developers.facebook.com/docs/reference/api/event
-        However, we also accept a picture param, which should point to a URL for
-        the event image.
+        We accept the params as per
+        http://developers.facebook.com/docs/reference/api/event
+        However, we also accept a picture param, which should point to
+        a URL for the event image.
 
         """
+
+        if id:
+            path = '/%s' % id
+        elif page_id:
+            path = '/%s/events' % page_id
+        else:
+            path = '/me/events'
+
         files = {}
         if 'picture' in data:
             file = urllib.urlopen(data['picture'])
@@ -163,8 +172,11 @@ class GraphAPI(object):
             finally:
                 del data['picture']
                 file.close()
-        path = "/" + ("me/events" if not id else str(id))
-        return self.multipart_request(path, post_args=data, files=files)
+        if files:
+            return self.multipart_request(path, post_args=data, files=files)
+
+        return self.request(path, post_args=data)
+
 
     def put_comment(self, object_id, message):
         """Writes the given comment on the given post."""
