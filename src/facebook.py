@@ -179,11 +179,15 @@ class GraphAPI(object):
         response = self.request(path, post_args=data)
 
         if files and isinstance(response, dict) and 'id' in response:
-            self.multipart_request(
-                '/%s/picture' % response['id'],
-                post_args={},
-                files=files,
-            )
+            try:
+                self.multipart_request(
+                    '/%s/picture' % response['id'],
+                    post_args={},
+                    files=files,
+                )
+            except GraphAPIError:
+                # don't block event creation due to logo upload issues
+                pass
 
         return response
 
