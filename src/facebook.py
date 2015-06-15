@@ -87,8 +87,15 @@ class GraphAPI(object):
     for the active user from the cookie saved by the SDK.
     """
 
-    def __init__(self, access_token=None):
+    def __init__(self, access_token=None, version=None):
         self.access_token = access_token
+        self.version = version
+        self.host = "graph.facebook.com/"
+        self.url = "https://{}".format(
+            self.host
+        ) if not self.version else "https://{0}{1}/".format(
+            self.host, self.version
+        )
 
     def get_object(self, id, **args):
         """Fetchs the given object from the graph."""
@@ -203,6 +210,32 @@ class GraphAPI(object):
         """Deletes the object with the given ID from the graph."""
         return self.request(id, post_args={"method": "delete"})
 
+    def get_permissions(self, id):
+        """Takes a Facebook user ID and returns a dict of perms.
+
+        The dictionary is composed of all the permissions the current
+        facebook app has been granted by the user, in the form of:
+
+            {
+                'user_location': True,
+                'user_groups': True,
+                'public_profile': True,
+                'user_friends': True,
+                ...,
+            }
+        """
+        args = {
+            'access_token': self.access_token
+        }
+        path = "{}/permissions".format(id)
+
+        data = self.request(path)
+        perms = {}
+        for permission in data.get('data'):
+            perms[permission['permission']] = True if permission['status'] == 'granted' else False
+
+        return perms
+
     def request(self, path, args=None, post_args=None):
         """Fetches the given path in the Graph API.
 
@@ -216,7 +249,8 @@ class GraphAPI(object):
             else:
                 args["access_token"] = self.access_token
         post_data = None if post_args is None else urllib.urlencode(post_args)
-        file = urllib.urlopen("https://graph.facebook.com/" + path + "?" +
+
+        file = urllib.urlopen(self.url + path + "?" +
                               urllib.urlencode(args), post_data)
         try:
             response = _parse_json(file.read())
