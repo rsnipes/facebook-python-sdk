@@ -40,6 +40,7 @@ import urllib
 import random
 import mimetypes
 import httplib
+import requests
 
 # Find a JSON parser
 # try:
@@ -174,27 +175,22 @@ class GraphAPI(object):
         else:
             path = '/me/events'
 
-        files = {}
-        if 'picture' in data:
-            picture_file = urllib.urlopen(data['picture'])
-            try:
-                files['source'] = picture_file.read()
-            finally:
-                del data['picture']
-                picture_file.close()
-
         response = self.request(path, post_args=data)
 
-        if files and isinstance(response, dict) and 'id' in response:
-            try:
-                self.multipart_request(
-                    '/%s/picture' % response['id'],
-                    post_args={},
-                    files=files,
-                )
-            except GraphAPIError:
-                # don't block event creation due to logo upload issues
-                pass
+        if 'picture' in data and isinstance(response, dict) and 'id' in response:
+            # Upload the event picture to the facebook event
+            url = '{url}{id}/'.format(
+                url=self.url,
+                id=response['id'],
+            )
+            post_args = {}
+            post_args['access_token'] = self.access_token
+            post_args['cover_url'] = data['picture']
+            # Silently ignore errors when uploading logos so it doesn't block
+            # event publishing.  Apparently v2.4 of the Facebook API will allow
+            # us to publish the event with the picture in one POST instead of
+            # this 2-step dance.
+            requests.post(url, data=post_args)
 
         return response
 
