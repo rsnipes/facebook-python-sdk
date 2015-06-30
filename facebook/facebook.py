@@ -186,13 +186,17 @@ class GraphAPI(object):
             post_args = {}
             post_args['access_token'] = self.access_token
             post_args['cover_url'] = data['picture']
-            # Silently ignore errors when uploading logos so it doesn't block
-            # event publishing.  Apparently v2.4 of the Facebook API will allow
-            # us to publish the event with the picture in one POST instead of
-            # this 2-step dance.
-            requests.post(url, data=post_args)
+            picture_response = requests.post(url, data=post_args)
+            # If there's an error, return the message to the calling code so we
+            # can log it. Not raising a GraphAPIError here because we want the
+            # event to publish even if there is an error in uploading the
+            # picture.
+            if picture_response.status_code != 200:
+                json_response = picture_response.json()
+                error_message = json_response.get('error').get('message')
+                return response, error_message
 
-        return response
+        return response, None
 
     def put_comment(self, object_id, message):
         """Writes the given comment on the given post."""
