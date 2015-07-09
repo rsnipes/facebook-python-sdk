@@ -158,6 +158,36 @@ class GraphAPI(object):
         """
         return self.put_object(profile_id, "feed", message=message, **attachment)
 
+    def get_page_access_token(self, page_id, fb_uid):
+        """Get the access_token for this page."""
+        # Posts to Pages require their own access token. See:
+        # https://developers.facebook.com/docs/pages/access-tokens
+        #
+        # If a page_id is provided, fetch account information for this
+        # facebook user and fetch the access_token that corresponds with
+        # the page_id.
+        page_access_token = None
+        url = '{url}{fb_uid}/accounts'.format(
+            url=self.url,
+            fb_uid=fb_uid,
+        )
+        account_response = requests.get(
+            url,
+            params={'access_token': self.access_token}
+        )
+        account_data = account_response.json()
+
+        if account_response.status_code != 200:
+            error_message = account_data.get('error').get('message')
+            return page_access_token, error_message
+
+        accounts = account_data.get('data')
+        for account in accounts:
+            if account['id'] == page_id:
+                page_access_token = account['access_token']
+
+        return page_access_token, None
+
     def put_event(self, id=None, page_id=None, fb_uid=None, **data):
         """Creates an event with a picture.
 
@@ -180,25 +210,12 @@ class GraphAPI(object):
         if 'picture' in data and isinstance(response, dict) and 'id' in response:
             page_access_token = None
             if page_id and fb_uid:
-                # Posts to Pages require their own access token. See:
-                # https://developers.facebook.com/docs/pages/access-tokens
-                #
-                # If a page_id is provided, fetch account information for this
-                # facebook user and fetch the access_token that corresponds with
-                # the page_id.
-                url = '{url}{fb_uid}/accounts'.format(
-                    url=self.url,
-                    fb_uid=fb_uid,
+                page_access_token, error_message = self.get_page_access_token(
+                    page_id,
+                    fb_uid
                 )
-                account_response = requests.get(
-                    url,
-                    params={'access_token': self.access_token}
-                )
-                account_data = account_response.json()
-                accounts = account_data.get('data')
-                for account in accounts:
-                    if account['id'] == page_id:
-                        page_access_token = account['access_token']
+                if error_message:
+                    return response, error_message
 
             # Upload the event picture to the facebook event
             post_args = {}
