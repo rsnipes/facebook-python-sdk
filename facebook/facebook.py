@@ -92,7 +92,7 @@ class GraphAPI(object):
         self.access_token = access_token
         self.version = version
         self.host = "graph.facebook.com/"
-        self.url = "https://{}".format(
+        self.url = "https://{}/".format(
             self.host
         ) if not self.version else "https://{0}{1}/".format(
             self.host, self.version
@@ -169,11 +169,11 @@ class GraphAPI(object):
         """
 
         if id:
-            path = '/%s' % id
+            path = '%s' % id
         elif page_id:
-            path = '/%s/events' % page_id
+            path = '%s/events' % page_id
         else:
-            path = '/me/events'
+            path = 'me/events'
 
         response = self.request(path, post_args=data)
 
