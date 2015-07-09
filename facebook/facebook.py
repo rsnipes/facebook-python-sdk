@@ -92,7 +92,7 @@ class GraphAPI(object):
         self.access_token = access_token
         self.version = version
         self.host = "graph.facebook.com/"
-        self.url = "https://{}".format(
+        self.url = "https://{}/".format(
             self.host
         ) if not self.version else "https://{0}{1}/".format(
             self.host, self.version
@@ -158,7 +158,37 @@ class GraphAPI(object):
         """
         return self.put_object(profile_id, "feed", message=message, **attachment)
 
-    def put_event(self, id=None, page_id=None, **data):
+    def get_page_access_token(self, page_id, fb_uid):
+        """Get the access_token for this page."""
+        # Posts to Pages require their own access token. See:
+        # https://developers.facebook.com/docs/pages/access-tokens
+        #
+        # If a page_id is provided, fetch account information for this
+        # facebook user and fetch the access_token that corresponds with
+        # the page_id.
+        page_access_token = None
+        url = '{url}{fb_uid}/accounts'.format(
+            url=self.url,
+            fb_uid=fb_uid,
+        )
+        account_response = requests.get(
+            url,
+            params={'access_token': self.access_token}
+        )
+        account_data = account_response.json()
+
+        if account_response.status_code != 200:
+            error_message = account_data.get('error').get('message')
+            return page_access_token, error_message
+
+        accounts = account_data.get('data')
+        for account in accounts:
+            if account['id'] == page_id:
+                page_access_token = account['access_token']
+
+        return page_access_token, None
+
+    def put_event(self, id=None, page_id=None, fb_uid=None, **data):
         """Creates an event with a picture.
 
         We accept the params as per
@@ -169,24 +199,38 @@ class GraphAPI(object):
         """
 
         if id:
-            path = '/%s' % id
+            path = '%s' % id
         elif page_id:
-            path = '/%s/events' % page_id
+            path = '%s/events' % page_id
         else:
-            path = '/me/events'
+            path = 'me/events'
 
         response = self.request(path, post_args=data)
 
         if 'picture' in data and isinstance(response, dict) and 'id' in response:
+            page_access_token = None
+            if page_id and fb_uid:
+                page_access_token, error_message = self.get_page_access_token(
+                    page_id,
+                    fb_uid
+                )
+                if error_message:
+                    return response, error_message
+
             # Upload the event picture to the facebook event
+            post_args = {}
+            post_args['cover_url'] = data['picture']
+            if page_access_token:
+                post_args['access_token'] = page_access_token
+            else:
+                post_args['access_token'] = self.access_token
+
             url = '{url}{id}/'.format(
                 url=self.url,
                 id=response['id'],
             )
-            post_args = {}
-            post_args['access_token'] = self.access_token
-            post_args['cover_url'] = data['picture']
             picture_response = requests.post(url, data=post_args)
+
             # If there's an error, return the message to the calling code so we
             # can log it. Not raising a GraphAPIError here because we want the
             # event to publish even if there is an error in uploading the
